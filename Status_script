@@ -1,0 +1,90 @@
+# ----------------------------------------------------------
+# WLS SERVERS and Deployed APPs data colection - Sorin Ceaus
+# ----------------------------------------------------------
+def connectToServer():
+  # HERE You need to update
+  username = 'weblogic'
+  password = 'Put the Administration Password HERE'
+  url='t3://<host>:<port>'
+  connect(username,password,url)
+  print version
+
+def disconnectFromServer():
+    disconnect()
+
+f = open("/opt/scripts/status.txt", "w")
+
+def serverdata():
+   print >>f,'\n', version
+   print >>f, '\n'
+   domainRuntime()
+   cd('ServerRuntimes')
+   servers=domainRuntimeService.getServerRuntimes()
+   for server in servers:
+    print >>f,'**************************************************'
+    print >>f,'##### SERVER :                -----', server.getName()
+    print >>f,'**************************************************'
+    print >>f,'##### State                   #####', server.getState()
+    print >>f,'##### ListenAddress           #####', server.getListenAddress()
+    print >>f,'##### ListenPort              #####', server.getListenPort()
+    print >>f,'##### Health State            #####', server.getHealthState()
+    print >>f,'##### Throughput              #####', server.getListenAddress()
+    cd("/ServerRuntimes/"+server.getName()+"/JVMRuntime/"+server.getName())
+    free    = int(server.getJVMRuntime().getHeapFreeCurrent())/(1024*1024)
+    freePct = int(server.getJVMRuntime().getHeapFreePercent())
+    current = int(server.getJVMRuntime().getHeapSizeCurrent())/(1024*1024)
+    maxh    = int(server.getJVMRuntime().getHeapSizeMax())/(1024*1024)
+    jversion = str(server.getJVMRuntime().getJavaVersion())
+    OSn = str(server.getJVMRuntime().getOSName())
+    OSv = str(server.getJVMRuntime().getOSVersion())
+    upt = str(server.getJVMRuntime().getUptime())
+    print >>f,'##### Current Heap Size (MB)  #####', current
+    print >>f,'##### MAX Heap Size (MB)      #####', maxh
+    print >>f,'##### FREE Heap Size (MB)     #####', free
+    print >>f,'##### FREE Heap Size (%)      #####', freePct
+    print >>f,'##### JAVA Version            #####', jversion
+    print >>f,'##### OS name                 #####', OSn
+    print >>f,'##### OS version              #####', OSv
+    print >>f,'##### Server uptime           #####', upt
+    #domainRuntime()
+    #servers=domainRuntimeService.getServerRuntimes()
+    #for server in servers:
+    jdbcDSrcs=server.getJDBCServiceRuntime().getJDBCDataSourceRuntimeMBeans()
+    for jdbaDSrc in jdbcDSrcs:
+      print >>f,'##### DATA Source Name      + #####', jdbaDSrc.getName()
+      print >>f,'##### DATA Source State       #####', jdbaDSrc.getState()
+      print >>f,'##### Active Conns cur. count #####', jdbaDSrc.getActiveConnectionsCurrentCount()
+      print >>f,'##### Active Conns high count #####', jdbaDSrc.getActiveConnectionsHighCount()
+
+def AppStatus():
+   domainConfig()
+   myapps=cmo.getAppDeployments()
+   #outputbuffer=[]
+   #outputbuffer.append("--"*36)
+   #outputbuffer.append (" %-50s%20s" %("APPLICATION NAME","STATUS"))
+   #outputbuffer.append("--"*36)
+   print >>f, '\n APPLICATIONS \n'
+   for app in myapps:
+     bean=getMBean('/AppDeployments/'+app.getName()+'/Targets/')
+     targetsbean=bean.getTargets()
+     for target in targetsbean:
+       domainRuntime()
+       cd('/')
+       cd('AppRuntimeStateRuntime/AppRuntimeStateRuntime')
+       appstatus=cmo.getCurrentState(app.getName(),target.getName())
+       #outputbuffer.append(" %-50s%20s" %(app.getName(),appstatus))
+       print >>f, ' NAME   :  ', app.getName()
+       print >>f, ' Status :  ', cmo.getCurrentState(app.getName(),target.getName())
+       print >>f, ' --- '
+       #outputbuffer.append(" %-50s%20s" %(app.getName(),appstatus))
+       serverConfig()
+   #outputbuffer.append("--"*36)
+   #print >>f,'\n'.join(outputbuffer)
+
+connectToServer()
+serverdata()
+print >>f, '- - - - - - - - - - - - - - - - - - - - - - - - - -'
+AppStatus()
+disconnectFromServer()
+f.close()
+exit()
